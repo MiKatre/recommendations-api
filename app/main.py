@@ -22,15 +22,29 @@ def get_db():
 
 @app.get("/")
 def read_root():
-    # Most popular movies
+    # Nothing for now
     return {"Hello": "World"}
 
-@app.get("/user/{user_id}")
-def send_recommendations(user_id: int, q: str = None):
-    return {"item_id": user_id, "q": q}
-
-@app.get("/background_process/generate_recommendations")
-def generate_recommendations(external_dataset_path: Path= external_dataset_path, db: Session = Depends(get_db)):
+# Create up to date dataset and send to colab
+@app.get("/background/update/model")
+def generate_dataset(external_dataset_path: Path= external_dataset_path, db: Session = Depends(get_db)):
     ratings = models.get_ratings(db)
-    status_message = get_recommendations(ratings, external_dataset_path)
-    return {"message": status_message}
+    status_message = create_dataset(ratings, external_dataset_path)
+    return {"message": 'Dataset uploaded'}
+
+# Fetch recommendations and insert into db
+@app.get("/background/update/recommendations")
+def insert_recommendations(external_dataset_path: Path= external_dataset_path, db: Session = Depends(get_db)):
+    recommendations = get_available_predictions()
+    result = models.insert_recommendations(db, recommendations)
+    return {"message": result}
+
+
+# Automatically does everything above. 
+# Needs powerful server to work
+@app.get("/background/retrain")
+def fully_update_recommendations(external_dataset_path: Path= external_dataset_path, db: Session = Depends(get_db)):
+    ratings = models.get_ratings(db)
+    recommendations = fully_retrain_model_and_update_recommendations(ratings, external_dataset_path)
+    result = models.insert_recommendations(db, recommendations)
+    return {"message": "Recommendations updated"}
